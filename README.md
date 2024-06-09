@@ -6,16 +6,25 @@
 
 ## Airbnb data analysis - Amsterdam
 
-Uma breve descrição do meu projeto, que eu fiz com muito cuidado e atenção aos detalhes, chamando as pessoas para que entrem no meu notebook.
+[Airbnb](https://www.airbnb.com) was born in 2007 when two hosts welcomed three guests to their San Francisco home, and has since grown to over 5 million hosts who have welcomed over 1.5 billion guest arrivals in almost every country across the globe.
+
+Every day, hosts offer unique stays and experiences that make it possible for guests to connect with communities in a more authentic way.
+
+At [Inside Airbnb](http://insideairbnb.com/get-the-data.html) we can find data about the listings from cities all over the world. Here, we take a look at **Amsterdam** in The Netherlands.
 
 [Link to project notebook](https://github.com/pedrohfm/airbnb-amsterdam-dsnp/blob/main/pedrohfm-airbnb-data-analysis-2024.ipynb)
 
-**Links:**
-* [LinkedIn](https://www.linkedin.com/in/-phfm/)
+## Takeaways
+1. Properties listed in Amsterdam Zuid are the most expensive to rent, with an average price of € 284,00 per night. Meanwhile, the cheapest location for an Airbnb in Amsterdam is Bijmer-Oost, with an average price per night of € 124,00.
+2. The average price per night one can expect when using Airbnb to stay in Amsterdam is € 247,00. 
+3. Most users on Airbnb will find that most listings in Amsterdam are for entire homes or apartments (64% of total listings, against 24% private rooms and only 1% hotel rooms).
+
+## Links:
+* [Connect on LinkedIn](https://www.linkedin.com/in/-phfm/)
 
 ## Other Projects
 
 * [**Overview of e-commerce in Brazil**](https://edu.nl/b7fkf)
   * *Python, PowerBI, Pandas, Seaborn*
-
+  
 ---
