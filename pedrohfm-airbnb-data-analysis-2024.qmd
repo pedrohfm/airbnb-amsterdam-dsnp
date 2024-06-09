@@ -1,0 +1,373 @@
+---
+jupyter: python3
+---
+
+<img alt="Colaboratory logo" width="15%" src="https://raw.githubusercontent.com/carlosfab/escola-data-science/master/img/novo_logo_bg_claro.png">
+
+#### **Data Science na Prática 4.0**
+*by [sigmoidal.ai](https://sigmoidal.ai)*
+
+---
+
+# Airbnb data analysis - *Amsterdam*
+
+[Airbnb](https://www.airbnb.com) was born in 2007 when two hosts welcomed three guests to their San Francisco home, and has since grown to over 5 million hosts who have welcomed over 1.5 billion guest arrivals in almost every country across the globe. 
+Every day, hosts offer unique stays and experiences that make it possible for guests to connect with communities in a more authentic way.
+
+At [Inside Airbnb](http://insideairbnb.com/get-the-data.html) we can find data about the listings from cities all over the world. Here, we take a look at **Amsterdam** in The Netherlands.
+
+<center><img alt="Airbnb in Amsterdam - Data Analysis" width="10%" src="https://www.area360.com.au/wp-content/uploads/2017/09/airbnb-logo.jpg"></center>
+
+## Takeaways
+1. Properties listed in Amsterdam Zuid are the most expensive to rent, with an average price of € 284,00 per night. Meanwhile, the cheapest location for an Airbnb in Amsterdam is Bijmer-Oost, with an average price per night of € 124,00.
+2. The average price per night one can expect when using Airbnb to stay in Amsterdam is € 247,00. 
+3. Most users on Airbnb will find that most listings in Amsterdam are for entire homes or apartments (64% of total listings, against 24% private rooms and only 1% hotel rooms). 
+
+## Getting data
+
+```{python}
+# importing necessary packages
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+%matplotlib inline
+```
+
+```{python}
+# importing csv file containing airbnb data into a DataFrame
+df = pd.read_csv("./ams-listings.csv",index_col='id')
+df
+```
+
+## Data Analysis
+
+**Variable dictionary**
+.
+* id: listing's unique identifier number (categorical).
+* name: listing's name (categorical).
+* host_id: host's unique identifier number (categorical).
+* host_name: host's name (categorical).
+* neighbourhood_group: no data.
+* neighbourhood: listing's neighbourhood (categorical).
+* latitude: coordinates lat (numerical).
+* longitude: coordinates long (numerical).
+* room_type: type of listing, such as room, whole apartment, etc... (categorical).
+* price: price per day (numerical).
+* minimum_nights: the minimum amount of nights a guest has to stay to be able to book the listing (numerical).
+* number_of_reviews: how many times the listing has received reviews from guests (numerical).
+* last_review: date when the last review was left by a guest (categorical in this case - doesn't make sense to perform operations between last review dates between listings, we want to simply know the date).
+* reviews_per_month: reviews per month (numerical).
+* calculated_host_listings_count: number of listings the host has on airbnb (numerical).
+* availability_365: days the listing is available for in a period of 365 days (numerical).
+* number_of_reviews_ltm: number of reviews received in the last twelve months (numerical).
+* license: listing's licence or permit code, if a license or permit is required (categorical).
+
+Before any analysis can be done, let's check our dataset.
+
+```{python}
+# display first five rows
+df.head()
+```
+
+### **Q1. How many variables and how many data points are there in our dataset? What are the types of variables?**
+
+```{python}
+# identify volume of data
+print(f"Data has {df.shape[0]} rows and {df.shape[1]} columns.")
+df.dtypes
+```
+
+```{python}
+df.hist(column=['price','reviews_per_month','number_of_reviews','number_of_reviews_ltm','availability_365','calculated_host_listings_count','minimum_nights'], bins=10, figsize=(10,10), grid=False);
+```
+
+### **Q2. What is the percentage of missing data?**
+
+```{python}
+# ordering the amount of missing values in the dataset per column
+df.isnull().sum().sort_values(ascending=False)/df.shape[0]
+```
+
+## Cleaning dataset
+
+* The *neighbourhood_group* column has no data, so we can drop it.
+* There are 960 listings that seemingly haven't been reviewed yet, these shouldn't be removed just because they're missing values.
+* The license missing values could just be filled with "exempted", since it's likely that data wasn't entered because the listing is exempted from having a license. 
+* Nearly 40%  of listings don't have a price. Let's see what we can do about it. 
+
+```{python}
+# dropping the empty column
+df_clean = df.drop(columns=['neighbourhood_group'])
+
+# filling missing license data with "Exempt"
+df_clean = df_clean.fillna({'license':"Exempt"})
+```
+
+```{python}
+df_clean[['price','reviews_per_month','number_of_reviews','number_of_reviews_ltm','availability_365','calculated_host_listings_count','minimum_nights']].describe().round(2)
+```
+
+### Cleaning minimum_nights
+
+The data related to reviews seem plausible. Even the maximum number of reviews in the last 12 months being 781 can be true for a property that is trending, for example.
+However, the minimum nights has some clear outliers, with listings with a minimum nights of more than a year. 
+
+```{python}
+df_clean.minimum_nights.plot(kind='box',
+                             vert=False,
+                             figsize=(10,10));
+```
+
+```{python}
+df_clean.minimum_nights.sort_values(ascending=False).iloc[0:9]
+```
+
+```{python}
+# calculating the interquartile range (IQR)
+min_nights_q3 = df_clean.minimum_nights.quantile(.75)
+min_nights_iqr = df_clean.minimum_nights.quantile(.75) - df_clean.minimum_nights.quantile(.25)
+
+# filtering dataset to exclude the outliers using the IQR
+df_clean = df_clean[df_clean['minimum_nights'] < (min_nights_q3+min_nights_iqr*1.5)]
+df_clean.minimum_nights.describe()
+```
+
+```{python}
+df_clean.minimum_nights.plot(kind='box',
+                             vert=False,
+                             figsize=(10,10));
+```
+
+### Cleaning price data
+
+After checking the listings on [Airbnb](https://www.airbnb.com/rooms/2474754?adults=1&children=0&enable_m3_private_room=true&infants=0&location=Amsterdam%2C%20Netherlands&pets=0&search_mode=regular_search&check_in=2024-06-08&check_out=2024-06-13&source_impression_id=p3_1717843756_P3kwXwnWSOuO1hTi&previous_page_section_name=1001&federated_search_id=e370e06c-0227-42c1-8cd4-af81e87b4eef) we can find that the one with a $10.000,00 per night rate seems like a standard apartment, albeit in a good location. No reviewers said anything about the price. 
+
+My hypothesis is that the host has changed the price to dissuade people from booking, instead of removing the listing from Airbnb. I believe we can safely remove this listing.
+We can also remove the second highest price because they are clear outliers. Let's see the effect of these outliers on the mean. 
+
+```{python}
+plt.figure(figsize=(10,10))
+sns.boxplot(data=df_clean,x='price')
+```
+
+```{python}
+# top 10 most expensive listings in Amsterdam
+df_clean.price.sort_values(ascending=False).iloc[0:9]
+```
+
+```{python}
+# filtering dataset
+df_clean = df_clean[df_clean['price'] < 8000]
+df_clean.price.describe()
+```
+
+```{python}
+df_clean[['price','reviews_per_month','number_of_reviews','number_of_reviews_ltm','availability_365','calculated_host_listings_count','minimum_nights']].describe().round(2)
+```
+
+```{python}
+plt.figure(figsize=(10,10))
+sns.boxplot(data=df_clean,x='price')
+```
+
+```{python}
+# checking for remaining missing values
+df_clean.isnull().sum().sort_values(ascending=False)
+```
+
+```{python}
+df_clean[['price','reviews_per_month']].describe().round(2)
+```
+
+### Remaining missing values
+
+There are still 547 missing values in both *last_review* and *reviews_per_month*. I believe these are either listings that have just recently been uploaded and haven't been booked yet, or listings that are very unpopular. 
+In this case we can choose wether to keep these listings or not. For the purpose of this analysis, I believe these listings are not relevant, and removing them should not have a negative impact on the analysis.
+
+```{python}
+# dropping these newly created listings
+df_clean = df_clean.dropna(subset=['last_review','reviews_per_month'],axis='index')
+df_clean.isnull().sum().sort_values(ascending=False)
+```
+
+```{python}
+df_clean[['price','reviews_per_month']].describe().round(2)
+```
+
+We successfully removed missing values and  outliers because: 
+
+* Removing the listings with *minimum_nights* that were calculated as outliers didn't affect the dataset significantly. Less than 10% of rows were removed and the mean and median remained 3 days.
+* The standard deviation for *price* went down by around 35%. 
+* Median for *price* and *minimum_nights* is still the same.
+* Getting rid of missing values in the *reviews_per_month* didn't affect other variables negatively, so we safely removed missing values and outliers. 
+
+### **Q3. What is the distribution for the numerical variables?**
+
+```{python}
+# plotting histograms for numerical variables
+(df_clean.hist(column=['price','reviews_per_month','number_of_reviews','number_of_reviews_ltm','availability_365','calculated_host_listings_count','minimum_nights'],
+               bins=10,
+               figsize=(10,10),
+               grid=False)
+               );
+```
+
+```{python}
+plt.figure(figsize=(10,10))
+plt.title("Density distribution of price split by type of room")
+
+sns.kdeplot(df_clean,x='price',hue='room_type',
+            palette='colorblind',
+            fill=True,
+            alpha=0.5,
+            linewidth=0.8);
+```
+
+### **Q4. What is the average price per night?**
+
+```{python}
+# checking average listing price
+avg_price = df_clean.price.mean().round(2)
+print(f"The average listing price is: ${avg_price}")
+```
+
+### **Q5. What is the correlation we observe between the variables in the dataset?**
+
+```{python}
+# creating a correlation matrix
+correlation = df_clean[['price','reviews_per_month','number_of_reviews','number_of_reviews_ltm','availability_365','calculated_host_listings_count','minimum_nights']].corr()
+# showing correlation matrix
+display(correlation)
+```
+
+```{python}
+# plotting a heatmap showing correlation
+plt.figure(figsize=(10,10))
+sns.heatmap(correlation,cmap='RdBu',fmt='.2f',square=True,linecolor='white',linewidths=0.5,annot=True);
+```
+
+### **Q6. What type of listing is most frequent in Airbnb?**
+
+```{python}
+# amount of available listings per type
+available_listings = df_clean[df_clean['availability_365'] != 0]
+(available_listings.groupby(by=['room_type']).size()
+ )
+```
+
+```{python}
+# showing the percentage of room types
+display((available_listings.groupby(by=['room_type'])
+  .size()/df_clean.shape[0])
+  .round(4)*100
+ )
+```
+
+```{python}
+pct_room_types = ((available_listings.groupby(by=['room_type'])
+  .size()/df_clean.shape[0])
+  .round(4)*100
+  )
+print(f"The type of listing on Airbnb that is most often rented out in Amsterdam is '{pct_room_types.index[0]}' accounting for {pct_room_types.iloc[0].round(2)}% of available listings.")
+```
+
+### **Q7. What is the most expensive location?**
+
+```{python}
+# average price per neighbourhood
+(df_clean.groupby(by=['neighbourhood'],as_index=True)['price']
+ .mean()
+ .sort_values(ascending=False)
+ .round(2)
+ )
+```
+
+```{python}
+# printing the most expensive neighbourhood in terms of price per night
+neighbourhood_price_per_night = (df_clean.groupby(by=['neighbourhood'],as_index=True)['price']
+ .mean()
+ .sort_values(ascending=False)
+ .round(2)
+ )
+
+print(f"The most expensive neighbourhood to rent an Airbnb in Amsterdam is {neighbourhood_price_per_night.index[0]}, costing ${neighbourhood_price_per_night.iloc[0]} per night.")
+```
+
+```{python}
+# plotar os imóveis pela latitude-longitude
+plt.figure(figsize=(20,20),
+           dpi=72,
+           )
+sns.scatterplot(data=df_clean,
+                x='longitude',
+                y='latitude',
+                hue='price',
+                palette='icefire',
+                size='price',
+                sizes=(5,100)
+                );
+```
+
+```{python}
+# geopandas so we can import .shp files
+import geopandas as gpd
+
+# loading a shapefile with municipal boundaries of cities in The Netherlands
+nl_shapefile = "./georef-netherlands-gemeente-millesime.shp"
+nl_map = gpd.read_file(nl_shapefile)
+
+nl_map
+```
+
+```{python}
+# filtering for the limits of Amsterdam
+amsterdam_map = nl_map[nl_map['gem_name'] == "['Amsterdam']"]
+amsterdam_map
+```
+
+```{python}
+# creating the plot
+f, ax = plt.subplots(1, figsize=(20,20),dpi=72)
+ax = amsterdam_map.plot(color='white', edgecolor='grey', ax=ax)
+
+# setting attributes
+ax.set(title='Price per night for listings in Amsterdam',
+       xlabel = 'Longitude E(º)',
+       ylabel = 'Latitude N(º)'
+       )
+
+# setting a grid and turning off the boundary lines
+ax.grid(True,color='lightgrey',linestyle='dotted',linewidth=2)
+ax.spines[['top','bottom','right','left']].set_visible(False)
+
+# plotting data on top of the outline
+sns.scatterplot(data=df_clean,
+                x='longitude',
+                y='latitude',
+                hue='price',
+                palette='icefire',
+                size='price',
+                sizes=(5,500),
+                alpha=0.8
+                ).legend(title="Price per night",
+                         prop={'size':20},
+                         loc='lower right');
+```
+
+### **Q8. What is the average minimum nights a guest can rent a listing for?**
+
+Note: According to Dutch regulations, you can only rent out your entire home in Amsterdam for a maximum of 30 nights per year, unless you have a specific permit that allows you to rent out your home for more nights, such as a short term stay license.
+
+```{python}
+# ver a média da coluna `minimum_nights``
+avg_min_nights = int(df_clean.minimum_nights.mean().round(0))
+
+print(f"Average minimum nights one must book an Airbnb listing for in Amsterdam is {avg_min_nights} nights.")
+```
+
+## Insights
+
+1. Properties listed in Amsterdam Zuid are the most expensive to rent, with an average price of € 284,00 per night. Meanwhile, the cheapest location for an Airbnb in Amsterdam is Bijmer-Oost, with an average price per night of € 124,00.
+2. The average price per night one can expect when using Airbnb to stay in Amsterdam is € 247,00. 
+3. Most users on Airbnb will find that most listings in Amsterdam are for entire homes or apartments (64% of total listings, against 24% private rooms and only 1% hotel rooms). 
+
